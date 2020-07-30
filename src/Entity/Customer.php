@@ -8,12 +8,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Serializer\Annotation\Groups;
 
 /**
- * Brand
+ * Customer
  *
- * @ORM\Table(name="brand")
+ * @ORM\Table(name="customer")
  * @ORM\Entity
  */
-class Brand
+class Customer
 {
     /**
      * @var int
@@ -35,15 +35,6 @@ class Brand
      */
     private $name;
     
-//    /**
-//     * @ORM\OneToMany(targetEntity="Model", mappedBy="brand", cascade={"persist"})
-//     */
-//    private $models;
-    
-//    public function __construct()
-//    {
-//        $this->models = new ArrayCollection();
-//    }
 
     public function getId()
     {
@@ -61,9 +52,4 @@ class Brand
 
         return $this;
     }
-//    
-//    public function getModels()
-//    {
-//        return $this->models;
-//    }
 }
