@@ -6,6 +6,8 @@ use Doctrine\ORM\Mapping as ORM;
 use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Nelmio\ApiDocBundle\Annotation\Model as Mod;
+use Swagger\Annotations as SWG;
 
 /**
  * Model
@@ -22,6 +24,7 @@ class Model
      * @ORM\Id
      * @ORM\GeneratedValue(strategy="AUTO")
      * @Groups({"default", "id"})
+     * @SWG\Property(type="integer", description="The unique identifier of the model.")
      */
     private $id;
     
@@ -32,6 +35,7 @@ class Model
      * @Assert\Length(max="255", minMessage="The name is to long. 255 characters maximum")
      * @Assert\NotBlank
      * @Groups({"default"})
+     * @SWG\Property(type="string", maxLength=255, description="The name of the model.")
      */
     private $name;
     
@@ -41,6 +45,7 @@ class Model
      * @ORM\Column(name="os", type="string", length=255, nullable=true)
      * @Assert\NotBlank
      * @Groups({"default"})
+     * @SWG\Property(type="string", maxLength=255, description="The OS of the model.")
      */
     private $os;
     
@@ -51,6 +56,7 @@ class Model
      * @Assert\NotBlank
      * @Assert\Date
      * @Groups({"default"})
+     * @SWG\Property(type="date", description="The release date of the model.")
      */
     private $releaseDate;        
 
@@ -58,6 +64,7 @@ class Model
      * @var \Brand
      * @ORM\ManyToOne(targetEntity="App\Entity\Brand", cascade={"all"}, fetch="EAGER")
      * @Groups({"default"})
+     * @SWG\Property(ref=@Mod(type=Brand::class), description="This is the brand of the smartphone. It has also a lots of characteristics.")
      */
     private $brand;
     

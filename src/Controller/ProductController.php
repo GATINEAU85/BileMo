@@ -14,17 +14,14 @@ use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Doctrine\ORM\EntityManagerInterface;
 
-//use Nelmio\ApiDocBundle\Annotation\Model;
-//use Nelmio\ApiDocBundle\Annotation\Security;
+use Nelmio\ApiDocBundle\Annotation\Model as Mod;
+use Nelmio\ApiDocBundle\Annotation\Security;
 use Swagger\Annotations as SWG;
 use Symfony\Component\Routing\Annotation\Route;
 
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
-//use FOS\RestBundle\Controller\Annotations\Get;
-//use FOS\RestBundle\Controller\Annotations\View;
-//use FOS\RestBundle\Controller\Annotations\Post;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
@@ -32,29 +29,21 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  */
 class ProductController extends AbstractController
 {
-//    /**
-//     * @Route("/", name="getProductsList", methods={"GET"})
-//     */
-//    public function index(SerializerInterface $serializer)
-//    {
-//        $em = $this->getDoctrine()->getManager();
-//        $product = $em->getRepository(Product::class)->findAll();
-//
-//        //If I doesn't use SerializerInterface I must configured the serializer thanks to an encoder and a normalizer
-//        // $encoders = [new JsonEncoder()];
-//        // $normalizers = [new ObjectNormalizer()];
-//        // $serializer = new Serializer($normalizers, $encoders);
-//
-//        $data = $serializer->serialize($product, 'json');
-//        
-//        return new Response($data, 200, [
-//            'Content-Type' => 'application/json'
-//        ]);
-//    }
-    
-        
     /**
      * @Route("/products/{id}", name="getProduct", methods={"GET"})
+     * @SWG\Response(
+     *     response=200,
+     *     description="Returns the products of an user",
+     *     @SWG\Schema(ref=@Mod(type=Product::class))
+     * )
+     * @SWG\Parameter(
+     *     name="id",
+     *     in="query",
+     *     type="string",
+     *     description="The field used to identify product"
+     * )
+     * @SWG\Tag(name="products")
+     * @Security(name="Bearer")
      */
     public function getProduct(Product $product, ProductRepository $productRepository, SerializerInterface $serializer)
     {
@@ -70,6 +59,13 @@ class ProductController extends AbstractController
     
     /**
      * @Route("/products/{page<\d+>?1}", name="getProducts", methods={"GET"})
+     * @SWG\Response(
+     *     response=200,
+     *     description="Returns the products list with a pagination by 10 entities.",
+     *     @SWG\Schema(ref=@Mod(type=Product::class))
+     * )
+     * @SWG\Tag(name="products")
+     * @Security(name="Bearer")
      */
     public function getProducts(Request $request, ProductRepository $productRespository, SerializerInterface $serializer)
     {
@@ -89,7 +85,14 @@ class ProductController extends AbstractController
     }  
     
     /**
-     * @Route("/products", name="addProduct", methods={"POST"})
+     * @Route("/admin/products", name="addProduct", methods={"POST"})
+     * @SWG\Response(
+     *     response=200,
+     *     description="Returns the products added.",
+     *     @SWG\Schema(ref=@Mod(type=Product::class))
+     * )
+     * @SWG\Tag(name="products")
+     * @Security(name="Bearer")
      */
     public function addProduct(Request $request, SerializerInterface $serializer, EntityManagerInterface $em, ValidatorInterface $validator)
     {
@@ -117,7 +120,14 @@ class ProductController extends AbstractController
     
     
     /**
-     * @Route("/products/{id}", name="updateProduct", methods={"PUT"})
+     * @Route("/admin/products/{id}", name="updateProduct", methods={"PUT"})
+     * @SWG\Response(
+     *     response=200,
+     *     description="Returns the product updated.",
+     *     @SWG\Schema(ref=@Mod(type=Product::class))
+     * )
+     * @SWG\Tag(name="products")
+     * @Security(name="Bearer")
      */
     public function updateProduct(Request $request, SerializerInterface $serializer, Product $product, ValidatorInterface $validator, EntityManagerInterface $em)
     {
@@ -153,7 +163,14 @@ class ProductController extends AbstractController
     }
     
     /**
-     * @Route("/products/{id}", name="deleteProduct", methods={"DELETE"})
+     * @Route("/admin/products/{id}", name="deleteProduct", methods={"DELETE"})
+     * @SWG\Response(
+     *     response=200,
+     *     description="Returns the product deleted.",
+     *     @SWG\Schema(ref=@Mod(type=Product::class))
+     * )
+     * @SWG\Tag(name="products")
+     * @Security(name="Bearer")
      */
     public function deleteProduct(Product $product, EntityManagerInterface $em)
     {
@@ -161,8 +178,8 @@ class ProductController extends AbstractController
         $em->flush();
         
         $data =  [
-            'status' => $exception->getCode(),
-            'message' => $exception->getMessage(),
+            'status' => 200,
+            'message' => "The product is deleted.",
         ];
         return new JsonResponse($data);
     }
