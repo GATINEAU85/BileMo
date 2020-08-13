@@ -6,6 +6,8 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Serializer\Annotation\Groups;
+use Nelmio\ApiDocBundle\Annotation\Model as Mod;
+use Swagger\Annotations as SWG;
 
 /**
  * Brand
@@ -22,6 +24,7 @@ class Brand
      * @ORM\Id
      * @ORM\GeneratedValue(strategy="AUTO")
      * @Groups({"default", "id"})
+     * @SWG\Property(type="integer", description="The unique identifier of the brand.")
      */
     private $id;
         
@@ -29,9 +32,10 @@ class Brand
      * @var string
      *
      * @ORM\Column(name="name", type="string", length=255, nullable=false)
-     * @Assert\Length(max="255", minMessage="The name is to long. 255 characters maximum")
+     * @Assert\Length(max="255", maxMessage="The name is to long. 255 characters maximum")
      * @Assert\NotBlank
      * @Groups({"default"})
+     * @SWG\Property(type="string", maxLength=255, description="The name of the brand.")
      */
     private $name;
     

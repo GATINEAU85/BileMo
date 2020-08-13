@@ -1,0 +1,11 @@
+nelmio_api_doc:
+    areas: # to filter documented areas
+        path_patterns:
+            - ^/api(?!/doc$) # Accepts routes under /api except /api/doc
+    documentation:
+        host: 127.0.0.1
+        schemes: [http]
+        info:
+            title: BileMo
+            description: This is an API which allow you to catch all phones that you want to sell !
+            version: 1.0.0
