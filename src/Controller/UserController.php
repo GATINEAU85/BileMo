@@ -27,7 +27,7 @@ use Swagger\Annotations as SWG;
 class UserController extends AbstractController
 {           
     /**
-     * @Route("/users/{page<\d+>?1}", name="getUsers", methods={"GET"})
+     * @Route("/users", name="getUsers", methods={"GET"})
      * @SWG\Response(
      *     response=200,
      *     description="Returns the list of all users",
@@ -40,7 +40,7 @@ class UserController extends AbstractController
     {
         $page = $request->query->get('page');
         
-        if($page === null || $page < 1){
+        if(is_null($page) || $page < 1){
             $page = 1 ;
         }
         $limit = 10;
@@ -54,10 +54,10 @@ class UserController extends AbstractController
     }  
     
     /**
-     * @Route("/customer/{id}/users", name="addUser", methods={"POST"})
+     * @Route("/customers/{id}/users", name="addUser", methods={"POST"})
      * @SWG\Response(
-     *     response=200,
-     *     description="Returns the user added",
+     *     response=201,
+     *     description="Returns the confirmation of the user add.",
      *     @SWG\Schema(ref=@Mod(type=User::class))
      * )
      * @SWG\Tag(name="users")
@@ -70,6 +70,8 @@ class UserController extends AbstractController
         $customerId = $request->attributes->get('id');
         $customer = $em->getRepository(Customer::class)->find($customerId);
         $user->setCustomer($customer);
+        $user->setPassword(password_hash($user->getPassword(), PASSWORD_BCRYPT));
+        $user->setRoles(['ROLE_USER']);
         
         //TODO - Renvoyer une bonne erreur 
         $errors = $validator->validate($user);
@@ -85,18 +87,18 @@ class UserController extends AbstractController
         $em->flush();
         
         $data = [
-            'status' => 201,
-            'message' => 'This users add is a success.'
+            'status'  => 201,
+            'message' => 'This users add is a success.',
         ];
         return new JsonResponse($data, 201);
     }
     
     
     /**
-     * @Route("/customer/{customerId}/users/{id}", name="updateUser", methods={"PUT"})
+     * @Route("/customers/{customerId}/users/{id}", name="updateUser", methods={"PUT"})
      * @SWG\Response(
      *     response=200,
-     *     description="Returns the user updated",
+     *     description="Returns the confirmation of user update.",
      *     @SWG\Schema(ref=@Mod(type=User::class))
      * )
      * @SWG\Tag(name="users")
@@ -122,6 +124,9 @@ class UserController extends AbstractController
                 }
             }
         }
+        $userUpdate->setPassword(password_hash($userUpdate->getPassword(), PASSWORD_BCRYPT));
+        $userUpdate->setRoles(['ROLE_USER']);
+        
         $errors = $validator->validate($userUpdate);
         if(count($errors)) {
             $errors = $serializer->serialize($errors, 'json');
@@ -131,17 +136,17 @@ class UserController extends AbstractController
         }
         $em->flush();
         $data = [
-            'status' => 200,
+            'status' => 201,
             'message' => 'The user is updated.'
         ];
         return new JsonResponse($data);
     }
     
     /**
-     * @Route("/customer/{customerId}/users/{id}", name="deleteUser", methods={"DELETE"})
+     * @Route("/customers/{customerId}/users/{id}", name="deleteUser", methods={"DELETE"})
      * @SWG\Response(
      *     response=200,
-     *     description="Returns the user deleted",
+     *     description="Returns the confirmation of delete.",
      *     @SWG\Schema(ref=@Mod(type=User::class))
      * )
      * @SWG\Tag(name="users")
@@ -153,15 +158,15 @@ class UserController extends AbstractController
         $em->flush();
         
         $data =  [
-            'status' => $exception->getCode(),
-            'message' => $exception->getMessage(),
+            'status' => 204,
+            'message' => "The delete of this user is success.",
         ];
         return new JsonResponse($data);
     }
     
     
     /**
-     * @Route("/customer/{id}/users", name="getUsersByCustomer", methods={"GET"})
+     * @Route("/customers/{id}/users", name="getUsersByCustomer", methods={"GET"})
      * @SWG\Response(
      *     response=200,
      *     description="Returns all users of a customers",
@@ -181,7 +186,7 @@ class UserController extends AbstractController
     }          
         
     /**
-     * @Route("/customer/{customerId}/users/{userId}", name="getUserById", methods={"GET"})
+     * @Route("/customers/{customerId}/users/{userId}", name="getUserById", methods={"GET"})
      * @SWG\Response(
      *     response=200,
      *     description="Returns user of a customer.",
