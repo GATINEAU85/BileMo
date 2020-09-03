@@ -2,6 +2,8 @@
 
 namespace App\Controller;
 
+use App\Links\LinksProductsGenerator;
+use App\Paging\ProductPaging;
 use App\Entity\Product;
 use App\Entity\Model;
 use App\Entity\Brand;
@@ -29,6 +31,14 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  */
 class ProductController extends AbstractController
 {
+    private $links;
+    private $paging;
+
+    public function __construct(LinksProductsGenerator $links, ProductPaging $paging) {
+            $this->links = $links;
+            $this->paging = $paging;
+    }
+    
     /**
      * @Route("/products/{id}", name="getProduct", methods={"GET"})
      * @SWG\Response(
@@ -49,6 +59,9 @@ class ProductController extends AbstractController
     {
         //$em = $this->getDoctrine()->getManager();
         $entity = $productRepository->find($product->getId());
+        
+        $this->links->addLinks($entity);
+
         $data = $serializer->serialize($entity, 'json');
                 
         return new Response($data, 200, [
@@ -67,16 +80,13 @@ class ProductController extends AbstractController
      * @SWG\Tag(name="products")
      * @Security(name="Bearer")
      */
-    public function getProducts(Request $request, ProductRepository $productRespository, SerializerInterface $serializer)
+    public function getProducts(Request $request, SerializerInterface $serializer)
     {
         $page = $request->query->get('page');
         
-        if(is_null($page) || $page < 1){
-            $page = 1 ;
-        }
-        $limit = 10;
-        //$products = $productRespository->findAllProducts($page, getEnv('LIMIT_PAGINATION'));
-        $products = $productRespository->findAllProducts($page, $limit);
+        $products = $this->paging->getDatas($page);
+        $this->links->addLinks($products);
+
         $data = $serializer->serialize($products, 'json');
         
         return new Response($data, 200, [

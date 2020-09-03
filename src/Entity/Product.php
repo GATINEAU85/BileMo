@@ -84,6 +84,8 @@ class Product
      */
     private $model;
     
+    private $links;
+    
     public function getId()
     {
         return $this->id;
@@ -159,4 +161,16 @@ class Product
         $this->model = $model;
     }
     
+    
+    public function getLinks(): ?array
+    {
+        return $this->links;
+    }
+
+    public function setLinks(array $links): self
+    {
+        $this->links = $links;
+
+        return $this;
+    }
 }
