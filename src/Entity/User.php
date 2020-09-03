@@ -67,7 +67,8 @@ class User implements UserInterface
      */
     private $customer;
     
-    
+    private $links;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -168,5 +169,17 @@ class User implements UserInterface
     {
         // If you store any temporary, sensitive data on the user, clear it here
         // $this->plainPassword = null;
+    }
+    
+    public function getLinks(): ?array
+    {
+        return $this->links;
+    }
+
+    public function setLinks(array $links): self
+    {
+        $this->links = $links;
+
+        return $this;
     }
 }

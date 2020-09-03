@@ -2,6 +2,9 @@
 
 namespace App\Controller;
 
+use App\Paging\UserPaging;
+use App\Responder\JsonResponder;
+use App\Links\LinksUsersGenerator;
 use App\Entity\User;
 use App\Entity\Model;
 use App\Entity\Customer;
@@ -26,6 +29,15 @@ use Swagger\Annotations as SWG;
  */
 class UserController extends AbstractController
 {           
+    private $links;
+    private $paging;
+    private $responder;
+
+    public function __construct(LinksUsersGenerator $links, UserPaging $paging, JsonResponder $responder) {
+            $this->links = $links;
+            $this->paging = $paging;
+            $this->responder = $responder;
+    }
     /**
      * @Route("/users", name="getUsers", methods={"GET"})
      * @SWG\Response(
@@ -36,22 +48,69 @@ class UserController extends AbstractController
      * @SWG\Tag(name="users")
      * @Security(name="Bearer")
      */
-    public function getUsers(Request $request, UserRepository $userRespository, SerializerInterface $serializer)
+    public function getUsers(Request $request, SerializerInterface $serializer)
     {
         $page = $request->query->get('page');
-        
-        if(is_null($page) || $page < 1){
-            $page = 1 ;
-        }
-        $limit = 10;
-        //$users = $userRespository->findAllUsers($page, getEnv('LIMIT_PAGINATION'));
-        $users = $userRespository->findAllUsers($page, $limit);
+        $users = $this->paging->getDatas($page);
+
+        $this->links->addLinks($users);
         $data = $serializer->serialize($users, 'json');
         
         return new Response($data, 200, [
             'Content-Type' => 'application/json'
         ]);
-    }  
+    }         
+    
+    /**
+     * @Route("/customers/{id}/users", name="getUsersByCustomer", methods={"GET"})
+     * @SWG\Response(
+     *     response=200,
+     *     description="Returns all users of a customers",
+     *     @SWG\Schema(ref=@Mod(type=User::class))
+     * )
+     * @SWG\Tag(name="users")
+     * @Security(name="Bearer")
+     */
+    public function getUsersByCustomer(Customer $customer, EntityManagerInterface $em, SerializerInterface $serializer)
+    {
+        $users = $em->getRepository(User::class)->findBy(['customer' => $customer]);
+        $this->links->addLinks($users);
+
+        $data = $serializer->serialize($users, 'json');
+        
+        return new Response($data, 200, [
+            'Content-Type' => 'application/json'
+        ]);
+    }          
+        
+    /**
+     * @Route("/customers/{customerId}/users/{id}", name="getUserByCustomer", methods={"GET"})
+     * @SWG\Response(
+     *     response=200,
+     *     description="Returns user of a customer.",
+     *     @SWG\Schema(ref=@Mod(type=User::class))
+     * )
+     * @SWG\Tag(name="users")
+     * @Security(name="Bearer")
+     */
+    public function getUserByCustomer(Request $request, SerializerInterface $serializer, EntityManagerInterface $em)
+    {
+        $userId = $request->attributes->get('id');
+        $customerId = $request->attributes->get('customerId');
+        
+        $customer = $em->getRepository(Customer::class)->find($customerId);
+        $user = $em->getRepository(User::class)->find($userId);
+
+        if($user->getCustomer() != $customer){
+            throw new \Exception("The customer hasn't a user identify by this id");
+        }
+        $this->links->addLinks($user);
+        $data = $serializer->serialize($user, 'json');
+                
+        return new Response($data, 200, [
+            'Content-Type' => 'application/json'
+        ]);
+    }
     
     /**
      * @Route("/customers/{id}/users", name="addUser", methods={"POST"})
@@ -69,28 +128,35 @@ class UserController extends AbstractController
         
         $customerId = $request->attributes->get('id');
         $customer = $em->getRepository(Customer::class)->find($customerId);
-        $user->setCustomer($customer);
-        $user->setPassword(password_hash($user->getPassword(), PASSWORD_BCRYPT));
-        $user->setRoles(['ROLE_USER']);
         
-        //TODO - Renvoyer une bonne erreur 
-        $errors = $validator->validate($user);
-        
-        if (count($errors)){
-            $errors = $serializer->serialize($errors, 'json');
-            return new Response($errors, 500, [
-                'Content-Type' => 'application/json'
-            ]);
+        if($customer == $this->getUser()->getCustomer()){
+            $user->setCustomer($customer);
+            $user->setPassword(password_hash($user->getPassword(), PASSWORD_BCRYPT));
+            $user->setRoles(['ROLE_USER']);
+
+            //TODO - Renvoyer une bonne erreur 
+            $errors = $validator->validate($user);
+
+            if (count($errors)){
+                $errors = $serializer->serialize($errors, 'json');
+                return new Response($errors, 500, [
+                    'Content-Type' => 'application/json'
+                ]);
+            }
+
+            $em->persist($user);
+            $em->flush();
+            
+            $this->links->addLinks($user);
+            return $this->responder->send($request, $user, 201);
+            
+        }else{
+            $data =  [
+                'status' => 500,
+                'message' => "Your account is not link to this customer. You can't add an user of an other customer.",
+            ];
+            return new JsonResponse($data);
         }
-        
-        $em->persist($user);
-        $em->flush();
-        
-        $data = [
-            'status'  => 201,
-            'message' => 'This users add is a success.',
-        ];
-        return new JsonResponse($data, 201);
     }
     
     
@@ -109,37 +175,42 @@ class UserController extends AbstractController
         $userUpdate = $em->getRepository(User::class)->find($user->getId());
         $customerId = $request->attributes->get('customerId');
 
-        $data = json_decode($request->getContent());
-        foreach ($data as $key => $value){
-            if($key && !empty($value)) {
-                if($key !== "id"){
-                    $name = ucfirst($key);
-                    $setter = 'set'.$name;
-                    if($key == "customer"){
-                        $customer = $em->getRepository(Customer::class)->find($customerId);
-                        $userUpdate->$setter($customer);
-                    }else{
-                        $userUpdate->$setter($value);
+        if($userUpdate->getCustomer() == $this->getUser()->getCustomer()){
+            $data = json_decode($request->getContent());
+            foreach ($data as $key => $value){
+                if($key && !empty($value)) {
+                    if($key !== "id"){
+                        $name = ucfirst($key);
+                        $setter = 'set'.$name;
+                        if($key == "customer"){
+                            $customer = $em->getRepository(Customer::class)->find($customerId);
+                            $userUpdate->$setter($customer);
+                        }else{
+                            $userUpdate->$setter($value);
+                        }
                     }
                 }
             }
+            $userUpdate->setPassword(password_hash($userUpdate->getPassword(), PASSWORD_BCRYPT));
+            $userUpdate->setRoles(['ROLE_USER']);
+
+            $errors = $validator->validate($userUpdate);
+            if(count($errors)) {
+                $errors = $serializer->serialize($errors, 'json');
+                return new Response($errors, 500, [
+                    'Content-Type' => 'application/json'
+                ]);
+            }
+            $em->flush();
+            $this->links->addLinks($userUpdate);
+            return $this->responder->send($request, $user, 201);
+        }else{
+            $data =  [
+                'status' => 500,
+                'message' => "Your account is not link to this customer. You can't update an user of an other customer.",
+            ];
+            return new JsonResponse($data);
         }
-        $userUpdate->setPassword(password_hash($userUpdate->getPassword(), PASSWORD_BCRYPT));
-        $userUpdate->setRoles(['ROLE_USER']);
-        
-        $errors = $validator->validate($userUpdate);
-        if(count($errors)) {
-            $errors = $serializer->serialize($errors, 'json');
-            return new Response($errors, 500, [
-                'Content-Type' => 'application/json'
-            ]);
-        }
-        $em->flush();
-        $data = [
-            'status' => 201,
-            'message' => 'The user is updated.'
-        ];
-        return new JsonResponse($data);
     }
     
     /**
@@ -154,64 +225,22 @@ class UserController extends AbstractController
      */
     public function deleteUser(User $user, EntityManagerInterface $em)
     {
-        $em->remove($user);
-        $em->flush();
+        if($user->getCustomer() == $this->getUser()->getCustomer()){
+            $em->remove($user);
+            $em->flush();
+        }else{
+            $data =  [
+                'status' => 500,
+                'message' => "Your account is not link to this customer. You can't delete a user of an other customer.",
+            ];
+            return new JsonResponse($data);
+        }
+
         
         $data =  [
             'status' => 204,
             'message' => "The delete of this user is success.",
         ];
         return new JsonResponse($data);
-    }
-    
-    
-    /**
-     * @Route("/customers/{id}/users", name="getUsersByCustomer", methods={"GET"})
-     * @SWG\Response(
-     *     response=200,
-     *     description="Returns all users of a customers",
-     *     @SWG\Schema(ref=@Mod(type=User::class))
-     * )
-     * @SWG\Tag(name="users")
-     * @Security(name="Bearer")
-     */
-    public function getUsersByCustomer(Customer $customer, EntityManagerInterface $em, SerializerInterface $serializer)
-    {
-        $users = $em->getRepository(User::class)->findBy(['customer' => $customer]);
-        $data = $serializer->serialize($users, 'json');
-        
-        return new Response($data, 200, [
-            'Content-Type' => 'application/json'
-        ]);
-    }          
-        
-    /**
-     * @Route("/customers/{customerId}/users/{userId}", name="getUserById", methods={"GET"})
-     * @SWG\Response(
-     *     response=200,
-     *     description="Returns user of a customer.",
-     *     @SWG\Schema(ref=@Mod(type=User::class))
-     * )
-     * @SWG\Tag(name="users")
-     * @Security(name="Bearer")
-     */
-    public function getUserByCustomer(Request $request, SerializerInterface $serializer, EntityManagerInterface $em)
-    {
-        $userId = $request->attributes->get('userId');
-        $customerId = $request->attributes->get('customerId');
-        
-        $customer = $em->getRepository(Customer::class)->find($customerId);
-        $user = $em->getRepository(User::class)->find($userId);
-
-        if($user->getCustomer() != $customer){
-            throw new \Exception("The customer hasn't a user identify by this id");
-        }
-        $data = $serializer->serialize($user, 'json');
-                
-        return new Response($data, 200, [
-            'Content-Type' => 'application/json'
-        ]);
-    }
-    
-    
+    }    
 }

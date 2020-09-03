@@ -36,14 +36,14 @@ class UserRepository extends ServiceEntityRepository implements PasswordUpgrader
         $this->_em->flush();
     }
 
-    public function findAllUsers($page, $limit)
-    {
-        $query = $this->createQueryBuilder('p')
-            ->getQuery()
-            ->setFirstResult(($page - 1) * $limit)
-            ->setMaxResults($limit);
-        return new Paginator($query);
-    }
+//    public function findAllUsers($page, $limit)
+//    {
+//        $query = $this->createQueryBuilder('p')
+//            ->getQuery()
+//            ->setFirstResult(($page - 1) * $limit)
+//            ->setMaxResults($limit);
+//        return new Paginator($query);
+//    }
     
     // /**
     //  * @return User[] Returns an array of User objects
